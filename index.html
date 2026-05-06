@@ -3,7 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>IKASI Qur'an Learning</title>
+  <title>Report Qur'an Learning</title>
+  
+  <!-- Icon Browser (Favicon) -->
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="apple-touch-icon" href="favicon.png">
+
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
   
@@ -262,8 +267,10 @@ function handleLogin() {
   const pass = document.getElementById('login-pass').value;
   if (!user || !pass) { showLoginError('Harap isi semua field'); return; }
   
-  const users = getUsers();
-  const found = users.find(u => (u.name === user || u.email === user) && u.password === pass);
+  // Mengambil gabungan data admin (user) dan guru (teacher) untuk pengecekan login
+  const allAccounts = allData.filter(d => d.type === 'user' || d.type === 'teacher');
+  const found = allAccounts.find(u => (u.name === user || u.email === user) && u.password === pass);
+  
   if (found) { currentUser = { name: found.name, role: found.role, id: found.__backendId }; saveSession(); render(); return; }
   if (user === 'admin' && pass === 'admin123') { currentUser = { name: 'Admin', role: 'admin', id: 'default' }; saveSession(); render(); return; }
   showLoginError('Username atau password salah');
@@ -271,7 +278,13 @@ function handleLogin() {
 
 function loginAsVisitor() { currentUser = { name: 'Pengunjung', role: 'visitor', id: 'visitor' }; saveSession(); render(); }
 function showLoginError(msg) { const el = document.getElementById('login-error'); el.textContent = msg; el.classList.remove('hidden'); }
-function handleLogout() { clearSession(); render(); }
+
+// DITAMBAHKAN: Reset currentPage ke 'dashboard' saat logout
+function handleLogout() { 
+  clearSession(); 
+  currentPage = 'dashboard';
+  render(); 
+}
 
 // ============ MAIN LAYOUT & SIDEBAR ============
 function toggleSidebar() {
@@ -304,7 +317,6 @@ function updateSidebarActiveState() {
 function navigate(page) { 
   currentPage = page; 
   if (window.innerWidth < 768 && isSidebarOpen) toggleSidebar();
-  updateSidebarActiveState();
   renderPage(); 
 }
 
@@ -370,14 +382,24 @@ function renderMain(app) {
   <main id="main-content" class="flex-1 overflow-y-auto h-full p-4 md:p-6 bg-slate-50 w-full"></main>
   `;
   
-  updateSidebarActiveState();
   renderPage();
 }
 
 function renderPage() {
   const main = document.getElementById('main-content');
   if (!main) return;
+  
+  // DITAMBAHKAN: Security Guard (Cegah pengunjung/guru mengakses halaman admin walau URL dipaksa)
+  const adminPages = ['settings', 'user-management', 'guru-account'];
+  if (adminPages.includes(currentPage) && currentUser.role !== 'admin') {
+    currentPage = 'dashboard'; 
+  }
+
   window.scrollTo(0,0);
+  
+  // Update UI Sidebar agar sesuai dengan currentPage yang valid
+  updateSidebarActiveState();
+
   switch(currentPage) {
     case 'dashboard': renderDashboard(main); break;
     case 'students': renderStudents(main); break;
@@ -1411,7 +1433,7 @@ function printStats() {
         </div>
         
         <div style="margin-top: 40px; padding-top: 20px; border-top: 2px solid #cbd5e1; text-align: center; color: #94a3b8; font-size: 12px;">
-          <p>Sistem Informasi IKASI Qur'an Learning</p>
+          <p>Sistem Informasi Report Qur'an Learning</p>
           <p style="margin-top: 50px;">Tanda Tangan:_________________</p>
         </div>
       </div>
@@ -1703,7 +1725,7 @@ async function doDeleteGuruAccount() {
 }
 
 // ============ INIT ============
-const defaultConfig = { app_title: 'IKASI Qur\'an Learning', font_family: 'Plus Jakarta Sans' };
+const defaultConfig = { app_title: 'Report Qur\'an Learning', font_family: 'Plus Jakarta Sans' };
 async function initApp() {
   window.elementSdk.init({ defaultConfig, onConfigChange: async (cfg) => { document.body.style.fontFamily = `${cfg.font_family || defaultConfig.font_family}, sans-serif`; } });
   await window.dataSdk.init({ onDataChanged(data) { allData = data; if (currentUser) renderPage(); if(window.lucide) lucide.createIcons(); } });
